@@ -8,7 +8,8 @@
   "main": "index.js",
   "scripts": {
     "test": "test",
-    "start": "node index"
+    "start": "node index",
+    "str": "nodemon index"
   },
   "dependencies": {
     "crypto": "^1.0.1",

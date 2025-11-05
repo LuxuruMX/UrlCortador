@@ -16,7 +16,7 @@ app.post('/create', async (req, res) => {
   }
 
   try {
-    const userIP = req.ip || req.connection.remoteAddress;
+    const userIP = req.ip || req.socket.remoteAddress;
 
     const { shortUrl, token, precio } = await createShortUrl(usuario, url, userIP);
 
