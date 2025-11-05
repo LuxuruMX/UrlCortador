@@ -1,3 +1,6 @@
+require('dotenv').config();
+
+
 const mysql = require('mysql2/promise');
 const crypto = require('crypto');
 
@@ -22,7 +25,7 @@ db.getConnection()
 
 
 
-// Crea las bases de datos
+// Crea las en bases de datos
 const initDB = async () => {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS urls (

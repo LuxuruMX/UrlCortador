@@ -1,3 +1,6 @@
+require('dotenv').config();
+
+
 const express = require('express');
 const createURL = require('./routes/create');
 const redirecURL = require('./routes/get');
