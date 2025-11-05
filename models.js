@@ -21,6 +21,8 @@ db.getConnection()
   });
 
 
+
+// Crea las bases de datos
 const initDB = async () => {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS urls (
@@ -66,6 +68,128 @@ initDB()
   .then(() => console.log('Crear/verificar tablas'))
   .catch(err => console.error('Error:', err));
 
+function generateShortUrl() {
+  return crypto.randomBytes(4).toString('base64url').slice(0, 6);
+}
+
+function generateToken() {
+  return crypto.randomBytes(16).toString('hex');
+}
+
+
+
+
+
+// Esta uncion simula que viene de mexico, mas no da el de otro pais fuera de mexico
+function getCountryFromIP(ip) {
+  if (ip === '::1' || ip === '127.0.0.1' || ip.startsWith('192.168')) {
+    return 'mx';
+  }
+  return 'us';
+}
+
+function parseDomainInfo(url) {
+  try {
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname;
+    const path = urlObj.pathname + urlObj.search;
+    
+    const domainParts = domain.split('.');
+    const tld = domainParts[domainParts.length - 1];
+    
+    return { domain, path, tld };
+  } catch (error) {
+    throw new Error('URL inválida');
+  }
+}
+
+async function calculatePrice(url, userIP, userId) {
+  const { domain, path, tld } = parseDomainInfo(url);
+  const userCountry = getCountryFromIP(userIP);
+
+  let price = 0.50;
+
+  if (domain.length > 11) {
+    const extraChars = domain.length - 11;
+    price += extraChars * 0.01;
+  }
+
+  const pathWithoutSlash = path.substring(1);
+  if (pathWithoutSlash.length > 11) {
+    const extraPathChars = pathWithoutSlash.length - 11;
+    price += extraPathChars * 0.09;
+  }
+
+  if (userCountry === tld) {
+    const [rows] = await db.execute('SELECT count FROM user_url_counts WHERE usuario = ?', [userId]);
+    const currentCount = rows.length > 0 ? rows[0].count : 0;
+
+    if (currentCount < 4) {
+      price *= 0.5;
+    } else {
+      price *= 0.9;
+    }
+  }
+
+  return Math.round(price);
+}
+
+
+
+
+
+
+async function createShortUrl(usuario, originalUrl, userIP) {
+  parseDomainInfo(originalUrl);
+
+  let shortUrl;
+  let existing = true;
+  while (existing) {
+    shortUrl = generateShortUrl();
+    const [rows] = await db.execute('SELECT 1 FROM urls WHERE shortUrl = ?', [shortUrl]);
+    existing = rows.length > 0;
+  }
+
+  const price = await calculatePrice(originalUrl, userIP, usuario);
+
+  let token;
+  const [tokenRows] = await db.execute('SELECT token FROM user_tokens WHERE usuario = ?', [usuario]);
+  if (tokenRows.length === 0) {
+    token = generateToken();
+    await db.execute('INSERT INTO user_tokens (usuario, token) VALUES (?, ?)', [usuario, token]);
+  } else {
+    token = tokenRows[0].token;
+  }
+
+  await db.execute(
+    'INSERT INTO urls (shortUrl, originalUrl, usuario, token) VALUES (?, ?, ?, ?)',
+    [shortUrl, originalUrl, usuario, token]
+  );
+
+  await db.execute(`
+    INSERT INTO user_url_counts (usuario, count) VALUES (?, 1)
+    ON DUPLICATE KEY UPDATE count = count + 1`,
+    [usuario]
+  );
+
+  await db.execute(`
+    INSERT INTO user_costs (usuario, total_cost) VALUES (?, ?)
+    ON DUPLICATE KEY UPDATE total_cost = total_cost + ?`,
+    [usuario, price, price]
+  );
+
+  return { shortUrl, token, precio: price };
+}
+
+
+
+
+
+
+
 module.exports = {
-  db
+  db,
+  createShortUrl,
+  parseDomainInfo,
+  getCountryFromIP
 };
