@@ -1,0 +1,15 @@
+{
+  "name": "urlcortador",
+  "version": "1.0.0",
+  "description": "Acortador de URLs",
+  "license": "ISC",
+  "author": "LuxuruMX",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
